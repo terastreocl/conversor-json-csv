@@ -31,9 +31,9 @@ def get_previous_month_range():
 
 def extraer_coordenadas(texto):
     if not texto:
-        return ""
-    match = re.search(r'(-?\d+\.\d+,-?\d+\.\d+)', texto)
-    return match.group(1) if match else ""
+        return "", ""
+    match = re.search(r'q=(-?\d+\.\d+),(-?\d+\.\d+)', texto)
+    return match.groups() if match else ("", "")
 
 def enviar_email_con_archivo(destinatario, archivo_adjunto):
     msg = EmailMessage()
@@ -83,24 +83,40 @@ def upload_file():
 
             df['start_at'] = pd.to_datetime(df['start_at'], errors='coerce')
 
-            # ✅ Extraer solo las coordenadas de los campos location
-            for campo in ['location_start', 'location_end']:
-                if campo in df.columns:
-                    df[campo] = df[campo].apply(extraer_coordenadas)
+            # Extraer coordenadas de location_start
+            latitudes = []
+            longitudes = []
+            for val in df.get("location_start", []):
+                lat, lon = extraer_coordenadas(val)
+                latitudes.append(lat)
+                longitudes.append(lon)
+            df["GPS_Latitud"] = latitudes
+            df["GPS_Longitud"] = longitudes
 
             inicio, fin = get_previous_month_range()
             df_filtrado = df[(df['start_at'] >= inicio) & (df['start_at'] <= fin)]
 
+            # Datos fijos del encabezado
+            meta = tabla.get("meta", {})
+            patente = meta.get("device.name", {}).get("value", "vehiculo").replace(" ", "_")
+            imei = meta.get("device.imei", {}).get("value", "sin_imei")
+
             nombre_mes = ["enero", "febrero", "marzo", "abril", "mayo", "junio",
                           "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"][inicio.month - 1]
 
-            # ✅ Extraer SOLO la patente (sin el código)
-            meta = tabla.get("meta", {})
-            patente = meta.get("device.name", {}).get("value", "vehiculo").replace(" ", "_")
+            # Crear nuevo DataFrame con el formato deseado
+            df_final = pd.DataFrame({
+                "ID_Servicio": ["CTR0091"] * len(df_filtrado),
+                "GPS_IMEI": [imei] * len(df_filtrado),
+                "PPU": [patente] * len(df_filtrado),
+                "GPS_Fecha_Hora_Chile": df_filtrado["start_at"],
+                "GPS_Latitud": df_filtrado["GPS_Latitud"],
+                "GPS_Longitud": df_filtrado["GPS_Longitud"]
+            })
 
             output_filename = f"reporte_{patente}_{nombre_mes}{inicio.year}.csv"
             output_path = os.path.join(app.config['UPLOAD_FOLDER'], output_filename)
-            df_filtrado.to_csv(output_path, index=False)
+            df_final.to_csv(output_path, index=False)
 
             enviar_email_con_archivo(email, output_path)
 
