@@ -2,16 +2,84 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Subir Informe</title>
+    <title>Enviar Informe de Rastreo</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background-color: #fff4d2;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 50px auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            text-align: center;
+        }
+
+        h1 {
+            color: #861b1b;
+            margin-bottom: 20px;
+        }
+
+        label {
+            font-weight: bold;
+            display: block;
+            margin-top: 20px;
+            color: #333;
+            text-align: left;
+        }
+
+        input[type="file"],
+        input[type="email"] {
+            width: 100%;
+            padding: 12px;
+            margin-top: 8px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            font-size: 16px;
+        }
+
+        button {
+            margin-top: 30px;
+            background-color: #2e2e2e;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #444;
+        }
+
+        .note {
+            margin-top: 20px;
+            font-size: 14px;
+            color: #666;
+        }
+    </style>
 </head>
 <body>
-    <h1>Subir Informe GPS</h1>
-    <form method="POST" enctype="multipart/form-data">
-        <label for="file">Selecciona el archivo .json</label><br>
-        <input type="file" name="file" required><br><br>
-        <label for="email">Ingresa el correo electrónico en el cual quieres enviar tu informe:</label><br>
-        <input type="email" name="email" required><br><br>
-        <button type="submit">Enviar Informe</button>
-    </form>
+    <div class="container">
+        <h1>Enviar Informe de Rastreo</h1>
+        <form method="POST" enctype="multipart/form-data">
+            <label for="file">Sube el archivo (.json):</label>
+            <input type="file" name="file" accept=".json" required>
+
+            <label for="email">Ingresa el correo electrónico al que quieres enviar el informe:</label>
+            <input type="email" name="email" placeholder="correo@ejemplo.com" required>
+
+            <button type="submit">Enviar Informe</button>
+        </form>
+        <div class="note">El informe también será enviado a terastreocl@gmail.com</div>
+    </div>
 </body>
 </html>
