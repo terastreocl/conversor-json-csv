@@ -5,67 +5,62 @@
     <title>Enviar Informe de Rastreo</title>
     <style>
         body {
-            font-family: 'Segoe UI', sans-serif;
-            background-color: white;
-            margin: 0;
-            padding: 0;
+            background-color: #ffffff;
+            font-family: Arial, sans-serif;
+            margin: 0;              /* Quitamos margen global */
+            padding: 0;             /* Quitamos padding */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;      /* Altura mínima de la pantalla */
         }
-
-        .container {
-            max-width: 600px;
-            margin: 50px auto;
-            background: #fff4d2;
+    
+        .form-container {
+            max-width: 400px;
+            margin: 40px 0;         /* Margen arriba y abajo */
             padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-            text-align: center;
+            background-color: #fff6dc;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
         }
-
-        h1 {
-            color: #440000;
+    
+        h2 {
+            text-align: center;
+            color: #8b0000;
             margin-bottom: 20px;
         }
-
-        label {
-            font-weight: bold;
-            display: block;
-            margin-top: 20px;
-            color: #333;
-            text-align: left;
-        }
-
+    
         input[type="file"],
         input[type="email"] {
+            display: block;
+            margin: 10px 0 20px;
             width: 100%;
-            padding: 12px;
-            margin-top: 8px;
-            border-radius: 6px;
-            border: 1px solid #5b7365;
-            font-size: 16px;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
         }
-
+    
         button {
-            margin-top: 30px;
-            background-color: #2e2e2e;
+            background-color: #333;
             color: white;
+            padding: 10px 20px;
             border: none;
-            padding: 15px 30px;
-            border-radius: 8px;
-            font-size: 16px;
+            border-radius: 5px;
             cursor: pointer;
-            transition: background-color 0.3s ease;
         }
-
+    
         button:hover {
-            background-color: #444;
+            background-color: #555;
         }
-
+    
         .note {
-            margin-top: 20px;
-            font-size: 14px;
+            text-align: center;
+            font-size: 0.8em;
             color: #666;
+            margin-top: 10px;
         }
     </style>
+    
 </head>
 <body>
     <div class="container">
