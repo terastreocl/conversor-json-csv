@@ -30,6 +30,8 @@ def get_previous_month_range():
     return first_day_prev_month, last_day_prev_month
 
 def enviar_email_con_archivo(destinatario, archivo_adjunto):
+    print("📤 Preparando envío de correo...")
+
     msg = EmailMessage()
     msg["Subject"] = "Reporte mensual de rastreo GPS"
     msg["From"] = REMITENTE
@@ -42,9 +44,13 @@ def enviar_email_con_archivo(destinatario, archivo_adjunto):
         nombre = os.path.basename(archivo_adjunto)
         msg.add_attachment(datos, maintype="application", subtype="octet-stream", filename=nombre)
 
-    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
-        smtp.login(REMITENTE, CLAVE_APP)
-        smtp.send_message(msg)
+    try:
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
+            smtp.login(REMITENTE, CLAVE_APP)
+            smtp.send_message(msg)
+        print(f"✅ Correo enviado a {destinatario} con archivo {archivo_adjunto}")
+    except Exception as e:
+        print(f"❌ ERROR enviando correo: {e}")
 
 @app.route('/', methods=['GET', 'POST'])
 def upload_file():
