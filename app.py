@@ -31,9 +31,19 @@ def get_previous_month_range():
 
 def extraer_coordenadas(texto):
     if not texto:
-        return ""
-    match = re.search(r'(-?\d+\.\d+,-?\d+\.\d+)', texto)
-    return match.group(1) if match else ""
+        return "", ""
+    match = re.search(r'(-?\d+\.\d+),\s*(-?\d+\.\d+)', texto)
+    if match:
+        return match.group(1), match.group(2)
+    return "", ""
+
+def obtener_valor_seguro(diccionario, ruta):
+    try:
+        for clave in ruta:
+            diccionario = diccionario[clave]
+        return diccionario
+    except (KeyError, TypeError):
+        return None
 
 def enviar_email_con_archivo(destinatario, archivo_adjunto):
     msg = EmailMessage()
@@ -82,39 +92,28 @@ def upload_file():
                 continue
 
             df['start_at'] = pd.to_datetime(df['start_at'], errors='coerce')
-
-            for campo in ['location_start', 'location_end']:
-                if campo in df.columns:
-                    df[campo] = df[campo].apply(extraer_coordenadas)
-
             inicio, fin = get_previous_month_range()
             df_filtrado = df[(df['start_at'] >= inicio) & (df['start_at'] <= fin)]
 
             if df_filtrado.empty:
                 continue
 
+            df_filtrado[['GPS_Latitud', 'GPS_Longitud']] = df_filtrado['location_start'].apply(lambda x: pd.Series(extraer_coordenadas(x)))
+            df_filtrado['ID_Servicio'] = 'CTR0091'
+            df_filtrado['GPS_IMEI'] = obtener_valor_seguro(tabla, ["meta", "device.imei", "value"])
+            df_filtrado['PPU'] = obtener_valor_seguro(tabla, ["meta", "device.name", "value"])
+            df_filtrado['GPS_Fecha_Hora_Chile'] = df_filtrado['start_at'].dt.strftime("%Y-%m-%d %H:%M:%S")
+
+            columnas_finales = ['ID_Servicio', 'GPS_IMEI', 'PPU', 'GPS_Fecha_Hora_Chile', 'GPS_Latitud', 'GPS_Longitud']
+            df_export = df_filtrado[columnas_finales]
+
             nombre_mes = ["enero", "febrero", "marzo", "abril", "mayo", "junio",
                           "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"][inicio.month - 1]
+            patente = df_export['PPU'].iloc[0] if not df_export['PPU'].isnull().all() else "vehiculo"
 
-            meta = tabla.get("meta", {})
-            imei = meta.get("device.imei", {}).get("value", "sin_imei")
-            patente_completa = meta.get("device.name", {}).get("value", "vehiculo")
-
-            # ✅ Sacar solo los primeros 6 caracteres como patente (PPU)
-            ppu = patente_completa[:6].replace(" ", "_")
-
-            df_reporte = pd.DataFrame({
-                "ID_Servicio": "CTR0091",
-                "GPS_IMEI": imei,
-                "PPU": ppu,
-                "GPS_Fecha_Hora_Chile": df_filtrado['start_at'],
-                "GPS_Latitud": df_filtrado['location_start'].apply(lambda x: x.split(',')[0] if isinstance(x, str) else ""),
-                "GPS_Longitud": df_filtrado['location_start'].apply(lambda x: x.split(',')[1] if isinstance(x, str) and ',' in x else "")
-            })
-
-            output_filename = f"reporte_{ppu}_{nombre_mes}{inicio.year}.csv"
+            output_filename = f"reporte_{patente}_{nombre_mes}{inicio.year}.csv"
             output_path = os.path.join(app.config['UPLOAD_FOLDER'], output_filename)
-            df_reporte.to_csv(output_path, index=False)
+            df_export.to_csv(output_path, index=False)
 
             enviar_email_con_archivo(email, output_path)
 
