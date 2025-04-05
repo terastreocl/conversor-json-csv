@@ -19,9 +19,11 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
+# Verificamos extensiones permitidas
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+# Rango del mes anterior
 def get_previous_month_range():
     today = datetime.today()
     first_day_this_month = datetime(today.year, today.month, 1)
@@ -29,12 +31,16 @@ def get_previous_month_range():
     first_day_prev_month = datetime(last_day_prev_month.year, last_day_prev_month.month, 1)
     return first_day_prev_month, last_day_prev_month
 
+# Extraer coordenadas de ubicación
 def extraer_coordenadas(texto):
     if not texto:
         return "", ""
     match = re.search(r'(-?\d+\.\d+),\s*(-?\d+\.\d+)', texto)
-    return (match.group(1), match.group(2)) if match else ("", "")
+    if match:
+        return match.group(1), match.group(2)
+    return "", ""
 
+# Extraer un valor profundo en un diccionario
 def obtener_valor_seguro(diccionario, ruta):
     try:
         for clave in ruta:
@@ -43,16 +49,15 @@ def obtener_valor_seguro(diccionario, ruta):
     except (KeyError, TypeError):
         return None
 
-def validar_id_servicio(valor):
-    if isinstance(valor, str) and re.fullmatch(r"(CTA|CTR|CTE)\d{4}", valor):
-        return valor
-    return "SIN_ID"
+# Validar ID_Servicio (CTA, CTR, CTE + 4 dígitos)
+def es_id_servicio_valido(valor):
+    return bool(re.match(r'^(CTA|CTR|CTE)\d{4}$', valor or ''))
 
-def validar_patente(valor):
-    if isinstance(valor, str) and re.fullmatch(r"[A-Z]{4}\d{2}", valor, re.IGNORECASE):
-        return valor.upper()
-    return "vehiculo"
+# Validar PPU (4 letras + 2 números)
+def es_patente_valida(valor):
+    return bool(re.match(r'^[A-Z]{4}\d{2}$', valor or ''))
 
+# Enviar correo con archivo adjunto
 def enviar_email_con_archivo(destinatario, archivo_adjunto):
     msg = EmailMessage()
     msg["Subject"] = "Reporte mensual de rastreo GPS"
@@ -99,25 +104,24 @@ def upload_file():
             if 'start_at' not in df.columns:
                 continue
 
+            # Convertir fechas y filtrar por el mes anterior
             df['start_at'] = pd.to_datetime(df['start_at'], errors='coerce')
             inicio, fin = get_previous_month_range()
             df_filtrado = df[(df['start_at'] >= inicio) & (df['start_at'] <= fin)]
-
             if df_filtrado.empty:
                 continue
 
-            # Extraer coordenadas desde campo location_start
+            # Extraer coordenadas de inicio
             df_filtrado[['GPS_Latitud', 'GPS_Longitud']] = df_filtrado['location_start'].apply(lambda x: pd.Series(extraer_coordenadas(x)))
 
-            # Validar ID de servicio y patente
-            id_servicio_raw = obtener_valor_seguro(tabla, ["meta", "code", "value"])
+            # Buscar posibles valores válidos en el JSON
+            valores_posibles = str(tabla).split()
+
+            id_servicio = next((v for v in valores_posibles if es_id_servicio_valido(v)), "SIN_ID")
+            patente = next((v for v in valores_posibles if es_patente_valida(v)), "vehiculo")
+
+            # Otros campos requeridos
             imei = obtener_valor_seguro(tabla, ["meta", "device.imei", "value"])
-            patente_raw = obtener_valor_seguro(tabla, ["meta", "device.name", "value"])
-
-            id_servicio = validar_id_servicio(id_servicio_raw)
-            patente = validar_patente(patente_raw)
-            imei = imei if imei else "SIN_IMEI"
-
             df_filtrado['ID_Servicio'] = id_servicio
             df_filtrado['GPS_IMEI'] = imei
             df_filtrado['PPU'] = patente
@@ -128,10 +132,11 @@ def upload_file():
 
             nombre_mes = ["enero", "febrero", "marzo", "abril", "mayo", "junio",
                           "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"][inicio.month - 1]
+
             output_filename = f"reporte_{patente}_{nombre_mes}{inicio.year}.csv"
             output_path = os.path.join(app.config['UPLOAD_FOLDER'], output_filename)
-
             df_export.to_csv(output_path, index=False)
+
             enviar_email_con_archivo(email, output_path)
 
         return render_template("gracias.html")
