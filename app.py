@@ -1,4 +1,4 @@
-from flask import Flask, request, render_template, redirect, url_for
+from flask import Flask, request, render_template
 from werkzeug.utils import secure_filename
 import pandas as pd
 import os
@@ -65,13 +65,13 @@ def upload_file():
             contenido = json.load(f)
 
         tablas = contenido.get("items", [])
-        for idx, tabla in enumerate(tablas):
+        for tabla in tablas:
             rows = tabla.get("table", {}).get("rows", [])
             if not rows:
                 continue
 
             df = pd.DataFrame(rows)
-            if 'start_at' not in df.columns or 'group_key' not in df.columns:
+            if 'start_at' not in df.columns:
                 continue
 
             df['start_at'] = pd.to_datetime(df['start_at'], errors='coerce')
@@ -80,7 +80,8 @@ def upload_file():
 
             nombre_mes = ["enero", "febrero", "marzo", "abril", "mayo", "junio",
                           "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"][inicio.month - 1]
-            patente = df['group_key'].iloc[0]
+
+            patente = contenido.get("meta", {}).get("device.name", "vehiculo").replace(" ", "_")
             output_filename = f"reporte_{patente}_{nombre_mes}{inicio.year}.csv"
             output_path = os.path.join(app.config['UPLOAD_FOLDER'], output_filename)
             df_filtrado.to_csv(output_path, index=False)
