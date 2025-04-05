@@ -6,6 +6,7 @@ import json
 from datetime import datetime, timedelta
 import smtplib
 from email.message import EmailMessage
+import re
 
 UPLOAD_FOLDER = 'uploads'
 ALLOWED_EXTENSIONS = {'json'}
@@ -28,12 +29,11 @@ def get_previous_month_range():
     first_day_prev_month = datetime(last_day_prev_month.year, last_day_prev_month.month, 1)
     return first_day_prev_month, last_day_prev_month
 
-def limpiar_url_html(texto):
+def extraer_coordenadas(texto):
     if not texto:
         return ""
-    start = texto.find("https")
-    end = texto.find('"', start)
-    return texto[start:end] if start != -1 else texto
+    match = re.search(r'(-?\d+\.\d+,-?\d+\.\d+)', texto)
+    return match.group(1) if match else ""
 
 def enviar_email_con_archivo(destinatario, archivo_adjunto):
     msg = EmailMessage()
@@ -83,10 +83,10 @@ def upload_file():
 
             df['start_at'] = pd.to_datetime(df['start_at'], errors='coerce')
 
-            # ✅ Limpiar URLs de campos location
+            # ✅ Extraer solo las coordenadas de los campos location
             for campo in ['location_start', 'location_end']:
                 if campo in df.columns:
-                    df[campo] = df[campo].apply(limpiar_url_html)
+                    df[campo] = df[campo].apply(extraer_coordenadas)
 
             inicio, fin = get_previous_month_range()
             df_filtrado = df[(df['start_at'] >= inicio) & (df['start_at'] <= fin)]
@@ -94,13 +94,10 @@ def upload_file():
             nombre_mes = ["enero", "febrero", "marzo", "abril", "mayo", "junio",
                           "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"][inicio.month - 1]
 
-            # ✅ Obtener nombre del dispositivo y código si existen
+            # ✅ Obtener nombre del dispositivo y código
             meta = contenido.get("meta", {})
-            patente = meta.get("device.name", "vehiculo").replace(" ", "_")
-            code = meta.get("device.code", "sin_codigo").replace(" ", "_")
-
-            print("DEBUG → Patente:", patente)
-            print("DEBUG → Código:", code)
+            patente = meta.get("device", {}).get("name", "vehiculo").replace(" ", "_")
+            code = meta.get("device", {}).get("code", "sin_codigo").replace(" ", "_")
 
             output_filename = f"reporte_{patente}_{code}_{nombre_mes}{inicio.year}.csv"
             output_path = os.path.join(app.config['UPLOAD_FOLDER'], output_filename)
