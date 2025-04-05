@@ -94,12 +94,11 @@ def upload_file():
             nombre_mes = ["enero", "febrero", "marzo", "abril", "mayo", "junio",
                           "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"][inicio.month - 1]
 
-            # ✅ Extraer desde tabla["meta"]["device.name"]["value"]
+            # ✅ Extraer SOLO la patente (sin el código)
             meta = tabla.get("meta", {})
             patente = meta.get("device.name", {}).get("value", "vehiculo").replace(" ", "_")
-            code = meta.get("device.code", {}).get("value", "sin_codigo").replace(" ", "_")
 
-            output_filename = f"reporte_{patente}_{code}_{nombre_mes}{inicio.year}.csv"
+            output_filename = f"reporte_{patente}_{nombre_mes}{inicio.year}.csv"
             output_path = os.path.join(app.config['UPLOAD_FOLDER'], output_filename)
             df_filtrado.to_csv(output_path, index=False)
 
