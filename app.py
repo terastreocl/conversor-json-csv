@@ -6,6 +6,7 @@ import json
 from datetime import datetime, timedelta
 import smtplib
 from email.message import EmailMessage
+import re
 
 UPLOAD_FOLDER = 'uploads'
 ALLOWED_EXTENSIONS = {'json'}
@@ -72,21 +73,39 @@ def upload_file():
                     continue
 
                 df = pd.DataFrame(rows)
-                if 'start_at' not in df.columns or 'group_key' not in df.columns:
+                if 'start_at' not in df.columns:
                     continue
 
                 df['start_at'] = pd.to_datetime(df['start_at'], errors='coerce')
                 inicio, fin = get_previous_month_range()
                 df_filtrado = df[(df['start_at'] >= inicio) & (df['start_at'] <= fin)]
 
-                nombre_mes = ["enero", "febrero", "marzo", "abril", "mayo", "junio",
-                              "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"][inicio.month - 1]
-                patente = df['group_key'].iloc[0]
-                output_filename = f"reporte_{patente}_{nombre_mes}{inicio.year}.csv"
-                output_path = os.path.join(app.config['UPLOAD_FOLDER'], output_filename)
-                df_filtrado.to_csv(output_path, index=False)
+                if df_filtrado.empty:
+                    continue
 
-                enviar_email_con_archivo(email, output_path)
+                # Buscar todas las patentes con formato XXXX11
+                patentes_detectadas = set()
+                for value in df_filtrado.values.flatten():
+                    if isinstance(value, str):
+                        matches = re.findall(r'\b([A-Z]{4}[0-9]{2})\b', value.upper())
+                        patentes_detectadas.update(matches)
+
+                if not patentes_detectadas:
+                    patentes_detectadas = {f"vehiculo_{idx+1}"}
+
+                for patente in patentes_detectadas:
+                    df_patente = df_filtrado[df_filtrado.apply(lambda row: patente in str(row.values), axis=1)]
+
+                    if df_patente.empty:
+                        continue
+
+                    nombre_mes = ["enero", "febrero", "marzo", "abril", "mayo", "junio",
+                                  "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"][inicio.month - 1]
+                    output_filename = f"reporte_{patente}_{nombre_mes}{inicio.year}.csv"
+                    output_path = os.path.join(app.config['UPLOAD_FOLDER'], output_filename)
+                    df_patente.to_csv(output_path, index=False)
+
+                    enviar_email_con_archivo(email, output_path)
 
         return render_template("gracias.html")
 
