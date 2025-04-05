@@ -37,14 +37,6 @@ def extraer_coordenadas(texto):
         return match.group(1), match.group(2)
     return "", ""
 
-def obtener_valor_seguro(diccionario, ruta):
-    try:
-        for clave in ruta:
-            diccionario = diccionario[clave]
-        return diccionario
-    except (KeyError, TypeError):
-        return None
-
 def enviar_email_con_archivo(destinatario, archivo_adjunto):
     msg = EmailMessage()
     msg["Subject"] = "Reporte mensual de rastreo GPS"
@@ -92,28 +84,32 @@ def upload_file():
                 continue
 
             df['start_at'] = pd.to_datetime(df['start_at'], errors='coerce')
+
+            # 🧭 Extraer coordenadas por separado
+            df["GPS_Latitud"] = df["location_start"].apply(lambda x: extraer_coordenadas(x)[0])
+            df["GPS_Longitud"] = df["location_start"].apply(lambda x: extraer_coordenadas(x)[1])
+
             inicio, fin = get_previous_month_range()
             df_filtrado = df[(df['start_at'] >= inicio) & (df['start_at'] <= fin)]
 
-            if df_filtrado.empty:
-                continue
-
-            df_filtrado[['GPS_Latitud', 'GPS_Longitud']] = df_filtrado['location_start'].apply(lambda x: pd.Series(extraer_coordenadas(x)))
-            df_filtrado['ID_Servicio'] = 'CTR0091'
-            df_filtrado['GPS_IMEI'] = obtener_valor_seguro(tabla, ["meta", "device.imei", "value"])
-            df_filtrado['PPU'] = obtener_valor_seguro(tabla, ["meta", "device.name", "value"])
-            df_filtrado['GPS_Fecha_Hora_Chile'] = df_filtrado['start_at'].dt.strftime("%Y-%m-%d %H:%M:%S")
-
-            columnas_finales = ['ID_Servicio', 'GPS_IMEI', 'PPU', 'GPS_Fecha_Hora_Chile', 'GPS_Latitud', 'GPS_Longitud']
-            df_export = df_filtrado[columnas_finales]
-
             nombre_mes = ["enero", "febrero", "marzo", "abril", "mayo", "junio",
                           "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"][inicio.month - 1]
-            patente = df_export['PPU'].iloc[0] if not df_export['PPU'].isnull().all() else "vehiculo"
+
+            meta = tabla.get("meta", {})
+            patente = meta.get("device.name", {}).get("value", "vehiculo").replace(" ", "_")
+            code = meta.get("device.code", {}).get("value", "sin_codigo").replace(" ", "_")
+
+            df_final = pd.DataFrame()
+            df_final["ID_Servicio"] = [code] * len(df_filtrado)
+            df_final["GPS_IMEI"] = meta.get("device.imei", {}).get("value", "desconocido")
+            df_final["PPU"] = patente
+            df_final["GPS_Fecha_Hora_Chile"] = df_filtrado["start_at"]
+            df_final["GPS_Latitud"] = df_filtrado["GPS_Latitud"]
+            df_final["GPS_Longitud"] = df_filtrado["GPS_Longitud"]
 
             output_filename = f"reporte_{patente}_{nombre_mes}{inicio.year}.csv"
             output_path = os.path.join(app.config['UPLOAD_FOLDER'], output_filename)
-            df_export.to_csv(output_path, index=False)
+            df_final.to_csv(output_path, index=False)
 
             enviar_email_con_archivo(email, output_path)
 
