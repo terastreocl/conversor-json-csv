@@ -8,9 +8,11 @@ import smtplib
 from email.message import EmailMessage
 import re
 
+# Configuración general
 UPLOAD_FOLDER = 'uploads'
 ALLOWED_EXTENSIONS = {'json'}
 
+# Configuración del correo
 REMITENTE = "terastreocl@gmail.com"
 CLAVE_APP = "owei lbzk inms cvqn"
 
@@ -19,11 +21,11 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-# ✅ Verifica si es un archivo JSON válido
+# Verifica que el archivo sea .json
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-# ✅ Extrae el rango del mes anterior
+# Define el rango del mes anterior
 def get_previous_month_range():
     today = datetime.today()
     first_day_this_month = datetime(today.year, today.month, 1)
@@ -31,33 +33,31 @@ def get_previous_month_range():
     first_day_prev_month = datetime(last_day_prev_month.year, last_day_prev_month.month, 1)
     return first_day_prev_month, last_day_prev_month
 
-# ✅ Extrae coordenadas desde un string tipo: "<a href='https...'>-39.1,-72.6</a>"
+# Extrae coordenadas de un string como "-38.111111,-72.222222"
 def extraer_coordenadas(texto):
     if not texto:
         return "", ""
     match = re.search(r'(-?\d+\.\d+),\s*(-?\d+\.\d+)', texto)
-    if match:
-        return match.group(1), match.group(2)
-    return "", ""
+    return (match.group(1), match.group(2)) if match else ("", "")
 
-# ✅ Extrae el valor de un diccionario anidado usando una ruta de claves
+# Busca un valor en un diccionario anidado
 def obtener_valor_seguro(diccionario, ruta):
     try:
         for clave in ruta:
             diccionario = diccionario[clave]
         return diccionario
     except (KeyError, TypeError):
-        return None
+        return ""
 
-# ✅ Verifica si el valor es una patente válida (4 letras y 2 números)
-def es_patente_valida(valor):
-    return bool(re.match(r"^[A-Z]{4}\d{2}$", valor or "", re.IGNORECASE))
-
-# ✅ Verifica si es un código válido tipo CTR0000, CTA1234, etc.
+# Valida el formato de código SEREMI
 def es_codigo_seremi_valido(valor):
     return bool(re.match(r"^(CTR|CTA|CTE)\d{4}$", valor or "", re.IGNORECASE))
 
-# ✅ Envío del email con el archivo generado
+# Valida formato de patente: 4 letras + 2 números (ej: ABCD12)
+def es_patente_valida(valor):
+    return bool(re.match(r"^[A-Z]{4}\d{2}$", valor or "", re.IGNORECASE))
+
+# Envía el archivo por correo
 def enviar_email_con_archivo(destinatario, archivo_adjunto):
     msg = EmailMessage()
     msg["Subject"] = "Reporte mensual de rastreo GPS"
@@ -75,7 +75,6 @@ def enviar_email_con_archivo(destinatario, archivo_adjunto):
         smtp.login(REMITENTE, CLAVE_APP)
         smtp.send_message(msg)
 
-# ✅ Ruta principal del formulario
 @app.route('/', methods=['GET', 'POST'])
 def upload_file():
     if request.method == 'POST':
@@ -92,6 +91,7 @@ def upload_file():
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(filepath)
 
+        # Carga JSON
         with open(filepath, "r", encoding="utf-8") as f:
             contenido = json.load(f)
 
@@ -105,6 +105,7 @@ def upload_file():
             if 'start_at' not in df.columns:
                 continue
 
+            # Filtra por mes anterior
             df['start_at'] = pd.to_datetime(df['start_at'], errors='coerce')
             inicio, fin = get_previous_month_range()
             df_filtrado = df[(df['start_at'] >= inicio) & (df['start_at'] <= fin)]
@@ -112,44 +113,41 @@ def upload_file():
             if df_filtrado.empty:
                 continue
 
-            # ✅ Extraer coordenadas (latitud y longitud)
+            # Extrae coordenadas desde location_start
             df_filtrado[['GPS_Latitud', 'GPS_Longitud']] = df_filtrado['location_start'].apply(lambda x: pd.Series(extraer_coordenadas(x)))
-            df_filtrado['GPS_Fecha_Hora_Chile'] = df_filtrado['start_at'].dt.strftime("%Y-%m-%d %H:%M:%S")
 
+            # Extrae campos obligatorios del meta
             meta = tabla.get("meta", {})
+            id_servicio = next(
+                (v for v in meta.values() if isinstance(v, dict) and es_codigo_seremi_valido(v.get("value"))),
+                {}
+            ).get("value")
 
-            # ✅ Buscar todas las posibles claves que puedan contener el código ID_Servicio
-            posibles_codigos = [
-                obtener_valor_seguro(meta, ["device.code", "value"]),
-                meta.get("device.code"),
-                meta.get("device_code")
-            ]
-            id_servicio = next((c for c in posibles_codigos if es_codigo_seremi_valido(c)), "SIN_ID")
+            ppu = next(
+                (v for v in meta.values() if isinstance(v, dict) and es_patente_valida(v.get("value"))),
+                {}
+            ).get("value")
 
-            # ✅ Buscar la PPU desde distintas rutas
-            posibles_ppu = [
-                obtener_valor_seguro(meta, ["device.name", "value"]),
-                meta.get("device.name"),
-                meta.get("device_name")
-            ]
-            ppu = next((p for p in posibles_ppu if es_patente_valida(p)), "vehiculo")
+            imei = obtener_valor_seguro(meta, ["device.imei", "value"])
 
-            imei = obtener_valor_seguro(meta, ["device.imei", "value"]) or ""
-
+            # Completa columnas
             df_filtrado['ID_Servicio'] = id_servicio
             df_filtrado['GPS_IMEI'] = imei
-            df_filtrado['PPU'] = ppu.upper()
+            df_filtrado['PPU'] = ppu
+            df_filtrado['GPS_Fecha_Hora_Chile'] = df_filtrado['start_at'].dt.strftime("%Y-%m-%d %H:%M:%S")
 
+            # Define columnas finales
             columnas_finales = ['ID_Servicio', 'GPS_IMEI', 'PPU', 'GPS_Fecha_Hora_Chile', 'GPS_Latitud', 'GPS_Longitud']
             df_export = df_filtrado[columnas_finales]
 
+            # Nombre archivo: reporte_<PPU>_<mesAño>.csv
             nombre_mes = ["enero", "febrero", "marzo", "abril", "mayo", "junio",
                           "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"][inicio.month - 1]
-
-            output_filename = f"reporte_{ppu.upper()}_{nombre_mes}{inicio.year}.csv"
+            output_filename = f"reporte_{ppu}_{nombre_mes}{inicio.year}.csv"
             output_path = os.path.join(app.config['UPLOAD_FOLDER'], output_filename)
             df_export.to_csv(output_path, index=False)
 
+            # Envía por correo
             enviar_email_con_archivo(email, output_path)
 
         return render_template("gracias.html")
