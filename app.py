@@ -33,9 +33,7 @@ def extraer_coordenadas(texto):
     if not texto:
         return "", ""
     match = re.search(r'(-?\d+\.\d+),\s*(-?\d+\.\d+)', texto)
-    if match:
-        return match.group(1), match.group(2)
-    return "", ""
+    return (match.group(1), match.group(2)) if match else ("", "")
 
 def obtener_valor_seguro(diccionario, ruta):
     try:
@@ -44,6 +42,16 @@ def obtener_valor_seguro(diccionario, ruta):
         return diccionario
     except (KeyError, TypeError):
         return None
+
+def validar_id_servicio(valor):
+    if isinstance(valor, str) and re.fullmatch(r"(CTA|CTR|CTE)\d{4}", valor):
+        return valor
+    return "SIN_ID"
+
+def validar_patente(valor):
+    if isinstance(valor, str) and re.fullmatch(r"[A-Z]{4}\d{2}", valor, re.IGNORECASE):
+        return valor.upper()
+    return "vehiculo"
 
 def enviar_email_con_archivo(destinatario, archivo_adjunto):
     msg = EmailMessage()
@@ -98,30 +106,32 @@ def upload_file():
             if df_filtrado.empty:
                 continue
 
-            # Coordenadas
+            # Extraer coordenadas desde campo location_start
             df_filtrado[['GPS_Latitud', 'GPS_Longitud']] = df_filtrado['location_start'].apply(lambda x: pd.Series(extraer_coordenadas(x)))
 
-            # Datos extraídos desde el JSON
+            # Validar ID de servicio y patente
+            id_servicio_raw = obtener_valor_seguro(tabla, ["meta", "code", "value"])
             imei = obtener_valor_seguro(tabla, ["meta", "device.imei", "value"])
-            patente = obtener_valor_seguro(tabla, ["meta", "device.name", "value"])
-            id_servicio = obtener_valor_seguro(tabla, ["meta", "code", "value"])
+            patente_raw = obtener_valor_seguro(tabla, ["meta", "device.name", "value"])
 
-            df_filtrado['ID_Servicio'] = id_servicio or "SIN_ID"
-            df_filtrado['GPS_IMEI'] = imei or "SIN_IMEI"
-            df_filtrado['PPU'] = patente or "vehiculo"
+            id_servicio = validar_id_servicio(id_servicio_raw)
+            patente = validar_patente(patente_raw)
+            imei = imei if imei else "SIN_IMEI"
+
+            df_filtrado['ID_Servicio'] = id_servicio
+            df_filtrado['GPS_IMEI'] = imei
+            df_filtrado['PPU'] = patente
             df_filtrado['GPS_Fecha_Hora_Chile'] = df_filtrado['start_at'].dt.strftime("%Y-%m-%d %H:%M:%S")
 
             columnas_finales = ['ID_Servicio', 'GPS_IMEI', 'PPU', 'GPS_Fecha_Hora_Chile', 'GPS_Latitud', 'GPS_Longitud']
             df_export = df_filtrado[columnas_finales]
 
-            # Crear nombre de archivo con patente y mes
             nombre_mes = ["enero", "febrero", "marzo", "abril", "mayo", "junio",
                           "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"][inicio.month - 1]
-            nombre_patente = df_export['PPU'].iloc[0] if not df_export['PPU'].isnull().all() else "vehiculo"
-            output_filename = f"reporte_{nombre_patente}_{nombre_mes}{inicio.year}.csv"
+            output_filename = f"reporte_{patente}_{nombre_mes}{inicio.year}.csv"
             output_path = os.path.join(app.config['UPLOAD_FOLDER'], output_filename)
-            df_export.to_csv(output_path, index=False)
 
+            df_export.to_csv(output_path, index=False)
             enviar_email_con_archivo(email, output_path)
 
         return render_template("gracias.html")
