@@ -7,29 +7,29 @@
         body {
             background-color: #ffffff;
             font-family: Arial, sans-serif;
-            margin: 0;              /* Quitamos margen global */
-            padding: 0;             /* Quitamos padding */
+            margin: 0;
+            padding: 0;
             display: flex;
             flex-direction: column;
             align-items: center;
-            min-height: 100vh;      /* Altura mínima de la pantalla */
+            min-height: 100vh;
         }
-    
+
         .form-container {
             max-width: 400px;
-            margin: 40px 0;         /* Margen arriba y abajo */
+            margin: 40px 0;
             padding: 30px;
             background-color: #fff6dc;
             border-radius: 8px;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
         }
-    
+
         h2 {
             text-align: center;
             color: #8b0000;
             margin-bottom: 20px;
         }
-    
+
         input[type="file"],
         input[type="email"] {
             display: block;
@@ -39,7 +39,7 @@
             border: 1px solid #ccc;
             border-radius: 5px;
         }
-    
+
         button {
             background-color: #333;
             color: white;
@@ -48,11 +48,11 @@
             border-radius: 5px;
             cursor: pointer;
         }
-    
+
         button:hover {
             background-color: #555;
         }
-    
+
         .note {
             text-align: center;
             font-size: 0.8em;
@@ -60,14 +60,13 @@
             margin-top: 10px;
         }
     </style>
-    
 </head>
 <body>
-    <div class="container">
-        <h1>Enviar Informe de Rastreo</h1>
+    <div class="form-container">
+        <h2>Enviar Informe de Rastreo</h2>
         <form method="POST" enctype="multipart/form-data">
             <label for="file">Sube el archivo (.json):</label>
-            <input type="file" name="file" accept=".json" required>
+            <input type="file" name="file" accept=".json" multiple required>
 
             <label for="email">Ingresa el correo electrónico al que quieres enviar el informe:</label>
             <input type="email" name="email" placeholder="correo@ejemplo.com" required>
