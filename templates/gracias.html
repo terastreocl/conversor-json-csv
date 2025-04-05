@@ -5,37 +5,49 @@
     <title>Gracias</title>
     <style>
         body {
-            background-color: #fff4d2;
-            font-family: 'Segoe UI', sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-        }
-
-        .mensaje {
-            background: white;
-            padding: 40px;
-            border-radius: 12px;
+            background-color: #fff6dc;
+            font-family: Arial, sans-serif;
             text-align: center;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            padding: 50px;
         }
 
-        h2 {
-            color: #861b1b;
+        .container {
+            background: white;
+            display: inline-block;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            color: #8b0000;
         }
 
         p {
-            color: #444;
-            margin-top: 10px;
+            margin-top: 20px;
+            color: #555;
+        }
+
+        .button {
+            margin-top: 30px;
+            display: inline-block;
+            padding: 12px 25px;
+            background-color: #333;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+        }
+
+        .button:hover {
+            background-color: #555;
         }
     </style>
 </head>
 <body>
-    <div class="mensaje">
-        <h2>¡Gracias!</h2>
+    <div class="container">
+        <h1>¡Gracias!</h1>
         <p>Tu archivo fue procesado con éxito y enviado por correo.</p>
+        <a class="button" href="{{ url_for('upload_file') }}">Subir otro archivo</a>
     </div>
 </body>
 </html>
