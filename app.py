@@ -11,7 +11,7 @@ UPLOAD_FOLDER = 'uploads'
 ALLOWED_EXTENSIONS = {'json'}
 
 REMITENTE = "terastreocl@gmail.com"
-CLAVE_APP = "owei lbzk inms cvqn"  # Puedes usar variable de entorno
+CLAVE_APP = "owei lbzk inms cvqn"
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
@@ -27,6 +27,9 @@ def get_previous_month_range():
     last_day_prev_month = first_day_this_month - timedelta(days=1)
     first_day_prev_month = datetime(last_day_prev_month.year, last_day_prev_month.month, 1)
     return first_day_prev_month, last_day_prev_month
+
+def limpiar_url_html(columna):
+    return columna.str.extract(r'href="([^"]+)"')[0]  # Extrae solo el contenido del href
 
 def enviar_email_con_archivo(destinatario, archivo_adjunto):
     msg = EmailMessage()
@@ -75,6 +78,12 @@ def upload_file():
                 continue
 
             df['start_at'] = pd.to_datetime(df['start_at'], errors='coerce')
+
+            # 🔧 Extraer solo la URL de los campos con <a href>
+            for campo in ['location_start', 'location_end']:
+                if campo in df.columns:
+                    df[campo] = limpiar_url_html(df[campo])
+
             inicio, fin = get_previous_month_range()
             df_filtrado = df[(df['start_at'] >= inicio) & (df['start_at'] <= fin)]
 
@@ -82,7 +91,8 @@ def upload_file():
                           "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"][inicio.month - 1]
 
             patente = contenido.get("meta", {}).get("device.name", "vehiculo").replace(" ", "_")
-            output_filename = f"reporte_{patente}_{nombre_mes}{inicio.year}.csv"
+            code = contenido.get("meta", {}).get("device.code", "sin_codigo").replace(" ", "_")
+            output_filename = f"reporte_{patente}_{code}_{nombre_mes}{inicio.year}.csv"
             output_path = os.path.join(app.config['UPLOAD_FOLDER'], output_filename)
             df_filtrado.to_csv(output_path, index=False)
 
