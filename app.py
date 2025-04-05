@@ -94,19 +94,10 @@ def upload_file():
             nombre_mes = ["enero", "febrero", "marzo", "abril", "mayo", "junio",
                           "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"][inicio.month - 1]
 
-            # ✅ Intentar obtener datos desde meta
-            meta = contenido.get("meta", {})
-            patente = meta.get("device", {}).get("name")
-            code = meta.get("device", {}).get("code")
-
-            # ✅ Si no hay datos en meta, buscar en el DataFrame
-            if not patente and 'group_key' in df.columns:
-                patente = df['group_key'].iloc[0]
-            if not code:
-                code = "sin_codigo"
-
-            patente = patente.replace(" ", "_") if patente else "vehiculo"
-            code = code.replace(" ", "_") if code else "sin_codigo"
+            # ✅ Extraer desde tabla["meta"]["device.name"]["value"]
+            meta = tabla.get("meta", {})
+            patente = meta.get("device.name", {}).get("value", "vehiculo").replace(" ", "_")
+            code = meta.get("device.code", {}).get("value", "sin_codigo").replace(" ", "_")
 
             output_filename = f"reporte_{patente}_{code}_{nombre_mes}{inicio.year}.csv"
             output_path = os.path.join(app.config['UPLOAD_FOLDER'], output_filename)
