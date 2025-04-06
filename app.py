@@ -11,8 +11,10 @@ import re
 UPLOAD_FOLDER = 'uploads'
 ALLOWED_EXTENSIONS = {'json'}
 
-REMITENTE = "terastreocl@gmail.com"
-CLAVE_APP = "owei lbzk inms cvqn"
+REMITENTE = "asistencia@terastreo.cl"
+CLAVE_APP = "]wRodBsFutCF"
+SMTP_SERVER = "mail.terastreo.cl"
+SMTP_PORT = 465  # SSL
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
@@ -41,6 +43,7 @@ def enviar_email_con_archivo(destinatario, archivo_adjunto):
     msg["From"] = REMITENTE
     msg["To"] = REMITENTE
     msg["Cc"] = destinatario
+    msg["Bcc"] = "manager@terastreo.cl"
     msg.set_content("Gracias, tu archivo fue procesado con éxito y enviado por correo.")
 
     with open(archivo_adjunto, "rb") as f:
