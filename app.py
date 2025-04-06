@@ -11,10 +11,8 @@ import re
 UPLOAD_FOLDER = 'uploads'
 ALLOWED_EXTENSIONS = {'json'}
 
-REMITENTE = "asistencia@terastreo.cl"
-CLAVE_APP = "]wRodBsFutCF"
-SMTP_SERVER = "mail.terastreo.cl"
-SMTP_PORT = 465  # SSL
+REMITENTE = "terastreocl@gmail.com"
+CLAVE_APP = "owei lbzk inms cvqn"
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
